@@ -1,5 +1,4 @@
-# Leash
-A cross-platform package manager where you control the permissions. Design doc — seeking contributors.
+# Leash"A cross-platform package manager where you control the permissions. Design doc — seeking contributors."
 # Leash
 
 You control the length. One system, any platform.
