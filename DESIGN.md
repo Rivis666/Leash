@@ -83,9 +83,9 @@ Shared build cache	Content-addressed store (local + remote). Warm = binary downl
 Sandbox wrapper	Tiered: bubblewrap+seccomp+Landlock+eBPF / gVisor / Firecracker/SmolVM. Zero-permission start	Exists (Flatpak uses bubblewrap today)
 Permission daemon	System service. Mediates all resource access. Enforces admin ceiling + user grants + conditions. The only door.	New — critical path
 Local LLM (3–7B, ~2–4GB)	Three jobs: permission explanations, build error resolution, model lifecycle management	llama.cpp + small model
-Admin policy file	/etc/srcbox/policy.yaml (Linux) / Group Policy + WDAC (Windows). Hard ceiling. Root-owned.	New
-Per-user policy store	~/.local/share/srcbox/permissions.db (SQLite). User's grants within the ceiling.	New
-User profile	~/.local/share/srcbox/profile.json. Granularity preference, trust levels, history. Feeds LLM.	New
+Admin policy file	/etc/Leash/policy.yaml (Linux) / Group Policy + WDAC (Windows). Hard ceiling. Root-owned.	New
+Per-user policy store	~/.local/share/Leash/permissions.db (SQLite). User's grants within the ceiling.	New
+User profile	~/.local/share/Leash/profile.json. Granularity preference, trust levels, history. Feeds LLM.	New
 Consistency checker	Deterministic: comment claims vs. actual behavior. Discrepancy → flag → optional report.	New
 Desktop integration	App menu, settings UI, update mechanism, .desktop / Start Menu generation	Standard platform work
 
@@ -97,10 +97,10 @@ Flatpak sandbox build system tutorial
 View all
 Deployment Model
 Layer	Scope	Owner
-Packager binary + LLM model + build cache	System-wide (/opt/srcbox/)	Admin
+Packager binary + LLM model + build cache	System-wide (/opt/Leash/)	Admin
 Sandbox enforcement (daemon)	System service (dedicated user, not root)	System
-Admin ceiling	/etc/srcbox/policy.yaml	Root
-Per-user grants + profile + app data	~/.local/share/srcbox/	User
+Admin ceiling	/etc/Leash/policy.yaml	Root
+Per-user grants + profile + app data	~/.local/share/Leash/	User
 4. Permission Model
 4.1 Zero-Permission Default
 The app starts in a sandbox with nothing. No filesystem access, no network, no devices. The sandbox is a room with no doors. The daemon is the only door.
@@ -133,7 +133,7 @@ At most [N] per [hour/day]	Frequency cap	Counter
 Up to [size] per session	Data volume cap	eBPF byte counter
 The LLM generates the available condition keywords from the code context. It doesn't offer "Until Tuesday" for a camera request. The vocabulary is contextual.
 4.4 Admin Ceiling
-# /etc/srcbox/policy.yaml (root-owned, read-only to daemon and user)ceiling:   network:     allowed_domains: ["*.example.com", "update.*"]     blocked: ["telemetry.*"]   filesystem:     allowed_paths: ["~/Documents", "~/Downloads"]     blocked: ["~/.ssh", "~/.gnupg", "/etc"]   devices:     camera: denied     microphone: denied   conditions:     foreground_required: true     max_frequency: "1/min"     data_volume: "100MB/session"   sandbox_tier:     default: 1     closed_source: 2     paranoid: 3
+# /etc/Leash/policy.yaml (root-owned, read-only to daemon and user)ceiling:   network:     allowed_domains: ["*.example.com", "update.*"]     blocked: ["telemetry.*"]   filesystem:     allowed_paths: ["~/Documents", "~/Downloads"]     blocked: ["~/.ssh", "~/.gnupg", "/etc"]   devices:     camera: denied     microphone: denied   conditions:     foreground_required: true     max_frequency: "1/min"     data_volume: "100MB/session"   sandbox_tier:     default: 1     closed_source: 2     paranoid: 3
 The ceiling is a hard constraint. The user can set stricter conditions within it, never looser. If the ceiling denies camera globally, no user on that machine can ever grant it. The daemon checks the ceiling before showing the prompt — if the ceiling blocks it, no prompt appears, the request is silently refused.
 Precedent: SELinux (admin writes policy, kernel enforces), Android Enterprise (MDM profile), macOS MDM (configuration profile). Same pattern.
 4.5 Adaptive Granularity
@@ -252,7 +252,7 @@ Quantization selection	Given accuracy floor + RAM ceiling, pick q4 vs. q8 vs. fp
 Memory pressure	Unload LRU, page to disk
 Version migration	Drop-in vs. re-prompt. Handle swap
 Consolidation	"Two 1B models doing similar things. One can be retired."
-API: srcbox_model_request(name, min_accuracy, max_ram) → model handle + path.
+API: Leash_model_request(name, min_accuracy, max_ram) → model handle + path.
 7. Build & Distribution
 7.1 Git as the Distribution Mechanism
 No new format. No new store platform. The "store" is a categorized, searchable index of Git repos with build metadata and permission summaries. The actual install is git clone + build + sandbox. The store never touches the binary.
@@ -290,10 +290,10 @@ Lookup table (per distro/OS)	99% of cases: libfoo-dev → apt install libfoo-
 LLM fallback	Novel/ambiguous: unknown package names, version deltas, CMake error format variations	1–3 seconds
 Self-solving cache	Every resolution feeds back. Table grows. LLM calls decrease.	Over time → 0
 7.6 Updates
-srcbox update → checks pinned refs → new commit? → cache hit or rebuild → atomic binary swap. Admin updates system-wide once; all users get it.
+Leash update → checks pinned refs → new commit? → cache hit or rebuild → atomic binary swap. Admin updates system-wide once; all users get it.
 8. UX Contract
 8.1 Install
-$ srcbox install gimp
+$ Leash install gimp
 ✓ gimp 3.2.1 installed
 ·	Compilation is invisible (cache hit or background build)
 ·	Dependency resolution is silent
@@ -318,7 +318,7 @@ GIMP 3.2.1
   Builds: 14,203 (cache hit rate: 97%)
   Flags: 0
   [ Install ]
-It's a catalog, not a warehouse. The store never touches the binary. You can ignore it entirely and srcbox install <any-git-url>.
+It's a catalog, not a warehouse. The store never touches the binary. You can ignore it entirely and Leash install <any-git-url>.
 8.4 Settings
 ·	View all grants per app. Modify (reopens If/When/Until builder). Revoke.
 ·	Audit log viewer (per-app, per-session).
@@ -326,10 +326,10 @@ It's a catalog, not a warehouse. The store never touches the binary. You can ign
 ·	Granularity preference (casual / privacy-conscious / power user)
 ·	Sandbox tier per app (if ceiling allows)
 8.5 Admin CLI
-srcbox-admin set-ceiling <policy.yaml>
-srcbox-admin list-users
-srcbox-admin force-tier <app> <tier>
-srcbox-admin view-audit <app> <session>
+Leash-admin set-ceiling <policy.yaml>
+Leash-admin list-users
+Leash-admin force-tier <app> <tier>
+Leash-admin view-audit <app> <session>
 Polkit rule: GUI apps can trigger install without full root (same pattern as Flatpak's flatpak group).
 9. Cross-Platform
 9.1 One Codebase, Two Adapters
@@ -464,3 +464,4 @@ Notes
 ·	What's missing: No code. No benchmarks. No formal security proof. This is a design doc, not a paper. The next version (v0.2) will include a proof-of-concept for the overlay resolver and the permission daemon to make the grant application concrete.
 ·	The one-paragraph pitch (for HN / Lobste.rs / grant cover letter):
 Every Linux and Windows package manager shares the same flaw: the packager decides your security policy, not you. Flatpak and Snap sandbox your apps, but the permissions are declared by a third party you have to trust. 41.7% of Flatpak apps have over-broad policies that defeat the sandbox. This is a design for a system that inverts the model: apps start with zero permissions, the user grants them at runtime with plain-English explanations generated by a local LLM that reads the actual code, and the admin sets a hard ceiling no user can override. It installs from Git, builds against system libraries, and feels like apt install. The design is complete. We're looking for engineers to build it.
+
